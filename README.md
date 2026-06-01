@@ -1,68 +1,58 @@
-# ML Project Template
+# Mental Health Classifier
 
-A clean, production-ready machine learning project structure.
+A Streamlit app that classifies mental health text using trained ML models.
 
-## Project Structure
+---
 
-```text
-ml_project_template/
-├── data/
-│   ├── raw/              # Original untouched data
-│   ├── interim/          # Temporary transformed data
-│   ├── processed/        # Final training-ready data
-│   └── external/         # Third-party data
-├── notebooks/            # EDA and experiments
-├── src/
-│   ├── config/           # Config loading
-│   ├── data/             # Data loading and preprocessing
-│   ├── features/         # Feature engineering
-│   ├── models/           # Model definitions
-│   ├── training/         # Training pipeline
-│   ├── evaluation/       # Metrics and evaluation
-│   ├── inference/        # Prediction code
-│   └── utils/            # Helper functions
-├── configs/              # YAML config files
-├── models/               # Saved model artifacts
-├── reports/              # Reports and visualizations
-├── tests/                # Unit tests
-├── logs/                 # Runtime logs
-├── requirements.txt
-├── pyproject.toml
-├── Dockerfile
-└── Makefile
+## First-Time Setup
+
+Run this **once** to create the virtual environment and install dependencies:
+
+```
+setup.bat
 ```
 
-## Setup
+---
 
-```bash
-python -m venv venv
-source venv/bin/activate   # Mac/Linux
-# venv\Scripts\activate   # Windows
+## Run the App
 
-pip install -r requirements.txt
+Every time you want to start the app:
+
+```
+run.bat
 ```
 
-## Run Training
+Then open your browser at:
 
-```bash
+```
+http://localhost:8501
+```
+
+---
+
+## Manual (if batch files don't work)
+
+```
+venv\Scripts\activate
+streamlit run app.py
+```
+
+---
+
+## Retrain the Models (optional)
+
+The models are already trained and saved in `models/sklearn/`. Only run this if you want to retrain from scratch.
+
+```
+venv\Scripts\activate
 python -m src.training.train --config configs/config.yaml
 ```
 
-## Run Inference
+Config file: `configs/config.yaml` — edit it to change TF-IDF settings, model hyperparameters, or data paths.
 
-```bash
-python -m src.inference.predict --input data/processed/sample.csv
-```
+---
 
-## Run Tests
+## Requirements
 
-```bash
-pytest
-```
-
-## Notes
-
-- Keep raw data unchanged.
-- Put reusable code inside `src/`.
-- Use notebooks only for exploration, not production logic.
-- Save trained models inside `models/`.
+- Python 3.11
+- Windows

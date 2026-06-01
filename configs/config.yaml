@@ -1,21 +1,25 @@
 project:
-  name: ml_project_template
   random_state: 42
 
 data:
-  raw_path: data/raw/dataset.csv
-  processed_path: data/processed/train.csv
-  target_column: target
+  processed_path: "data/processed/mental_health_cleaned.csv"
   test_size: 0.2
 
-model:
-  type: random_forest
-  params:
-    n_estimators: 100
-    max_depth: null
+tfidf:
+  max_features: 50000
+  ngram_range: [1, 2]
+
+sklearn_models:
+  logistic_regression:
+    C: 1.0
+  naive_bayes: {}
+  random_forest:
+    n_estimators: 200
+  svm:
+    C: 1.0
 
 training:
-  model_output_path: models/model.joblib
+  sklearn_output_dir: "models/sklearn"
 
 logging:
-  log_file: logs/training.log
+  log_file: "logs/train.log"

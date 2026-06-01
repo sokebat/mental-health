@@ -1,7 +1,7 @@
 [project]
-name = "ml-project-template"
+name = "mental-health-text-classifier"
 version = "0.1.0"
-description = "Production-ready ML project template"
+description = "Mental health text classification using TF-IDF sklearn models"
 requires-python = ">=3.10"
 
 [tool.pytest.ini_options]

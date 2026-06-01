@@ -1,37 +1,53 @@
+"""
+Inference module — sklearn backend.
+
+Usage:
+  python -m src.inference.predict --text "I feel hopeless"
+  python -m src.inference.predict --input data/processed/sample.csv
+"""
+
 import argparse
 from pathlib import Path
 
 import joblib
 import pandas as pd
 
+from src.data.preprocess import preprocess_text
 
-def predict(input_path: str, model_path: str = "models/model.joblib"):
-    input_file = Path(input_path)
-    model_file = Path(model_path)
 
-    if not input_file.exists():
-        raise FileNotFoundError(f"Input file not found: {input_file}")
+def predict_sklearn(
+    texts: list[str],
+    model_dir: str | Path,
+    model_type: str = "logistic_regression",
+) -> list[str]:
+    d = Path(model_dir)
+    tfidf = joblib.load(d / "tfidf_vectorizer.pkl")
+    le = joblib.load(d / "label_encoder.pkl")
+    model = joblib.load(d / f"{model_type}.pkl")
 
-    if not model_file.exists():
-        raise FileNotFoundError(f"Model file not found: {model_file}")
-
-    model = joblib.load(model_file)
-    df = pd.read_csv(input_file)
-
-    predictions = model.predict(df)
-    output = df.copy()
-    output["prediction"] = predictions
-
-    output_path = input_file.parent / "predictions.csv"
-    output.to_csv(output_path, index=False)
-
-    print(f"Predictions saved to {output_path}")
+    cleaned = [preprocess_text(t) for t in texts]
+    X = tfidf.transform(cleaned)
+    preds = model.predict(X)
+    return le.inverse_transform(preds).tolist()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", required=True, help="Path to input CSV file")
-    parser.add_argument("--model", default="models/model.joblib", help="Path to trained model")
+    parser.add_argument("--text", help="Single text input")
+    parser.add_argument("--input", help="Path to CSV with a 'text' column")
+    parser.add_argument("--model-type", default="logistic_regression")
+    parser.add_argument("--sklearn-dir", default="models/sklearn")
     args = parser.parse_args()
 
-    predict(args.input, args.model)
+    texts = []
+    if args.text:
+        texts = [args.text]
+    elif args.input:
+        texts = pd.read_csv(args.input)["text"].tolist()
+    else:
+        raise ValueError("Provide --text or --input")
+
+    results = predict_sklearn(texts, args.sklearn_dir, args.model_type)
+
+    for text, label in zip(texts, results):
+        print(f"[{label}] {text[:80]}")

@@ -1,84 +1,90 @@
+"""
+Training entry point.
+
+Usage:
+  python -m src.training.train --config configs/config.yaml
+"""
+
 import argparse
+import time
 from pathlib import Path
 
 import joblib
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
+import yaml
 
-from src.config.config_loader import load_config
-from src.data.load_data import load_csv
-from src.data.preprocess import basic_preprocess
-from src.features.build_features import split_features_target
-from src.models.model_factory import create_model
-from src.evaluation.metrics import classification_metrics
+from src.data.preprocess import load_and_clean
+from src.evaluation.metrics import classification_metrics, print_report
+from src.features.build_features import (
+    build_tfidf,
+    encode_labels,
+    save_artifacts,
+    split_data,
+)
+from src.models.model_factory import create_sklearn_model
 from src.utils.logger import get_logger
 
 
-def train(config_path: str):
-    config = load_config(config_path)
-    logger = get_logger(__name__, config["logging"]["log_file"])
+def train_sklearn(config: dict, logger) -> dict:
+    cfg_data = config["data"]
+    cfg_tfidf = config["tfidf"]
+    cfg_models = config["sklearn_models"]
+    out_dir = Path(config["training"]["sklearn_output_dir"])
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info("Loading data...")
-    df = load_csv(config["data"]["raw_path"])
+    logger.info("Loading and cleaning data...")
+    df = load_and_clean(cfg_data["processed_path"])
 
-    logger.info("Preprocessing data...")
-    df = basic_preprocess(df)
+    le, _ = encode_labels(df["status"])
+    df["label"] = le.transform(df["status"])
 
-    target_column = config["data"]["target_column"]
-    X, y = split_features_target(df, target_column)
-
-    categorical_cols = X.select_dtypes(include=["object", "category"]).columns.tolist()
-    numeric_cols = X.select_dtypes(exclude=["object", "category"]).columns.tolist()
-
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols),
-            ("num", "passthrough", numeric_cols),
-        ]
-    )
-
-    model = create_model(
-        model_type=config["model"]["type"],
-        params=config["model"]["params"],
-        task="classification",
-    )
-
-    pipeline = Pipeline(
-        steps=[
-            ("preprocessor", preprocessor),
-            ("model", model),
-        ]
-    )
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=config["data"]["test_size"],
+    train_df, val_df = split_data(
+        df,
+        test_size=cfg_data["test_size"],
         random_state=config["project"]["random_state"],
     )
 
-    logger.info("Training model...")
-    pipeline.fit(X_train, y_train)
+    logger.info("Building TF-IDF features...")
+    tfidf, X_train = build_tfidf(
+        train_df["clean_text"].tolist(),
+        max_features=cfg_tfidf["max_features"],
+        ngram_range=tuple(cfg_tfidf["ngram_range"]),
+    )
+    X_val = tfidf.transform(val_df["clean_text"].tolist())
+    y_train = train_df["label"].values
+    y_val = val_df["label"].values
 
-    logger.info("Evaluating model...")
-    predictions = pipeline.predict(X_test)
-    metrics = classification_metrics(y_test, predictions)
+    save_artifacts(tfidf, le, out_dir)
+    logger.info(f"TF-IDF matrix shape: {X_train.shape}")
 
-    logger.info(f"Metrics: {metrics}")
+    results = {}
+    for model_type, params in cfg_models.items():
+        logger.info(f"Training {model_type}...")
+        start = time.time()
+        model = create_sklearn_model(model_type, params)
+        model.fit(X_train, y_train)
+        preds = model.predict(X_val)
+        elapsed = time.time() - start
 
-    model_output_path = Path(config["training"]["model_output_path"])
-    model_output_path.parent.mkdir(parents=True, exist_ok=True)
+        metrics = classification_metrics(y_val, preds)
+        results[model_type] = {**metrics, "time_s": round(elapsed, 1)}
+        logger.info(
+            f"  {model_type}: acc={metrics['accuracy']:.4f}  "
+            f"f1={metrics['f1_macro']:.4f}  [{elapsed:.1f}s]"
+        )
+        print_report(y_val, preds, le.classes_, model_type)
 
-    joblib.dump(pipeline, model_output_path)
-    logger.info(f"Model saved to {model_output_path}")
+        joblib.dump(model, out_dir / f"{model_type}.pkl")
+
+    logger.info("All sklearn models saved.")
+    return results
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True, help="Path to config YAML file")
+    parser.add_argument("--config", required=True)
     args = parser.parse_args()
 
-    train(args.config)
+    with open(args.config) as f:
+        cfg = yaml.safe_load(f)
+    log = get_logger(__name__, cfg["logging"]["log_file"])
+    train_sklearn(cfg, log)
