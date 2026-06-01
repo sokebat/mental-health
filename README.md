@@ -33,24 +33,14 @@ http://localhost:8501
 ## Manual (if batch files don't work)
 
 ```
+python -m venv venv
 venv\Scripts\activate
+pip install -r requirements.txt
 streamlit run app.py
 ```
 
 ---
 
-## Retrain the Models (optional)
-
-The models are already trained and saved in `models/sklearn/`. Only run this if you want to retrain from scratch.
-
-```
-venv\Scripts\activate
-python -m src.training.train --config configs/config.yaml
-```
-
-Config file: `configs/config.yaml` — edit it to change TF-IDF settings, model hyperparameters, or data paths.
-
----
 
 ## Requirements
 
