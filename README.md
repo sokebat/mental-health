@@ -1,7 +1,5 @@
 # Decoding Distress: Mental Health Text Classifier
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://mental-health-bgqd5euvqkdumfexbnvvwp.streamlit.app/)
-![Python](https://img.shields.io/badge/python-3.12-blue)
 
 A machine learning pipeline that classifies social media text into four mental health categories — **Normal, Depression, Suicidal, and Anxiety** — using TF-IDF feature engineering and classical ML models trained on Reddit community posts.
 
